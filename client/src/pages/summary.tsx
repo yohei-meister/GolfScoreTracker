@@ -29,8 +29,19 @@ export default function Summary() {
     return null;
   }
   
-  const currentCourse = courses.find(course => course.id === game.courseId);
-  const courseHoles = currentCourse?.holes.slice(0, game.holeCount) || [];
+  // Create default holes for custom courses
+  const createDefaultHoles = (count: number) => {
+    return Array.from({ length: count }, (_, i) => ({
+      number: i + 1,
+      par: 4,
+      yards: 400
+    }));
+  };
+  
+  // Get hole information
+  const courseHoles = game.courseId === "custom"
+    ? createDefaultHoles(game.holeCount)
+    : courses.find(course => course.id === game.courseId)?.holes.slice(0, game.holeCount) || [];
   
   const handleNewGame = () => {
     resetGame();

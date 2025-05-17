@@ -37,8 +37,17 @@ export default function Game() {
     return null;
   }
   
-  const currentCourse = courses.find(course => course.id === game.courseId);
-  const currentHole = currentCourse?.holes[game.currentHole - 1];
+  // Create default hole structure for custom courses
+  const getDefaultHole = (holeNumber: number) => ({
+    number: holeNumber,
+    par: 4,
+    yards: 400
+  });
+  
+  // Get current hole information
+  const currentHole = game.courseId === "custom" 
+    ? getDefaultHole(game.currentHole) 
+    : courses.find(course => course.id === game.courseId)?.holes[game.currentHole - 1];
   
   const handlePrevHole = () => {
     if (game.currentHole > 1) {

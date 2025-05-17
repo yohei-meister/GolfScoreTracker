@@ -35,11 +35,15 @@ export default function Home() {
   const { initializeGame } = useStore();
   const [playerCount, setPlayerCount] = useState(1);
   
+  // State for custom course
+  const [showCustomCourse, setShowCustomCourse] = useState(false);
+  const [customCourseName, setCustomCourseName] = useState("");
+  
   // Setup form with validation
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      courseId: "",
+      courseId: "custom",
       holeCount: "9",
       playerCount: 1,
       players: [{ id: uuidv4(), name: "" }]
@@ -86,25 +90,29 @@ export default function Home() {
   // Handle form submission
   const onSubmit = (data: FormValues) => {
     try {
-      const selectedCourse = courses.find(course => course.id === data.courseId);
-      
-      if (!selectedCourse) {
+      if (!customCourseName) {
         toast({
           title: "Error",
-          description: "Selected course not found",
+          description: "Please enter a course name",
           variant: "destructive"
         });
         return;
       }
       
-      const courseHoles = data.holeCount === "9" ? selectedCourse.holes.slice(0, 9) : selectedCourse.holes;
+      // Create basic hole structure based on selected hole count
+      const holeCount = parseInt(data.holeCount);
+      const holes = Array.from({ length: holeCount }, (_, i) => ({
+        number: i + 1,
+        par: 4, // Default par value
+        yards: 400 // Default yards value
+      }));
       
-      // Initialize new game
+      // Initialize new game with custom course
       initializeGame({
         id: uuidv4(),
-        courseId: selectedCourse.id,
-        courseName: selectedCourse.name,
-        holeCount: parseInt(data.holeCount),
+        courseId: "custom",
+        courseName: customCourseName,
+        holeCount: holeCount,
         players: data.players,
         scores: [],
         currentHole: 1,
@@ -130,31 +138,19 @@ export default function Home() {
           <h2 className="text-lg font-semibold mb-4 text-neutral-dark">Game Setup</h2>
           
           <form onSubmit={form.handleSubmit(onSubmit)}>
-            {/* Course Selection */}
+            {/* Course Input */}
             <div className="mb-4">
-              <Label htmlFor="courseId" className="block text-sm font-medium text-gray-700 mb-1">
-                Golf Course
+              <Label htmlFor="courseName" className="block text-sm font-medium text-gray-700 mb-1">
+                Golf Course Name
               </Label>
               <div className="relative">
-                <Select 
-                  onValueChange={(value) => form.setValue("courseId", value)}
-                  defaultValue={form.getValues("courseId")}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select a course" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {courses.map(course => (
-                      <SelectItem key={course.id} value={course.id}>
-                        {course.name}
-                      </SelectItem>
-                    ))}
-                    <SelectItem value="custom">Custom Course...</SelectItem>
-                  </SelectContent>
-                </Select>
-                {form.formState.errors.courseId && (
-                  <p className="text-sm text-red-500 mt-1">{form.formState.errors.courseId.message}</p>
-                )}
+                <Input
+                  id="courseName"
+                  placeholder="Enter course name"
+                  value={customCourseName}
+                  onChange={(e) => setCustomCourseName(e.target.value)}
+                  className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-primary focus:border-primary"
+                />
               </div>
             </div>
             

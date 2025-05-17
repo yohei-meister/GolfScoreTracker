@@ -76,8 +76,33 @@ export function ScoreCard({ game, currentHole, onPrevHole, onNextHole }: ScoreCa
         <div className="flex justify-between items-center mb-3">
           <h3 className="text-lg font-semibold">Hole <span>{currentHole.number}</span></h3>
           <div className="flex space-x-1 text-sm">
-            <span className="px-2 py-1 bg-gray-100 rounded">Par: <span>{currentHole.par}</span></span>
-            <span className="px-2 py-1 bg-gray-100 rounded">Yards: <span>{currentHole.yards}</span></span>
+            <div className="flex items-center">
+              <span className="text-sm mr-1">Par:</span>
+              <input 
+                type="number" 
+                min="1"
+                max="10"
+                value={currentHole.par}
+                onChange={(e) => {
+                  // Note: In a full implementation, we'd update the par for this hole
+                  // For now, we'll just show the editable field
+                }}
+                className="w-12 px-2 py-1 text-center border border-gray-300 rounded-md"
+              />
+            </div>
+            <div className="flex items-center ml-2">
+              <span className="text-sm mr-1">Yards:</span>
+              <input 
+                type="number"
+                min="1"
+                value={currentHole.yards}
+                onChange={(e) => {
+                  // Note: In a full implementation, we'd update the yards for this hole
+                  // For now, we'll just show the editable field
+                }}
+                className="w-16 px-2 py-1 text-center border border-gray-300 rounded-md"
+              />
+            </div>
           </div>
         </div>
         
