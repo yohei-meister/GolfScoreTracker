@@ -219,7 +219,7 @@ export default function Home() {
             
             {/* Player Names */}
             <div className="space-y-3 mb-5">
-              {form.getValues("players").map((player, index) => (
+              {form.watch("players").map((player, index) => (
                 <PlayerNameInput
                   key={player.id}
                   index={index}
