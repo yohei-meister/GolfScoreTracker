@@ -40,7 +40,22 @@ export function ScoreCard({ game, currentHole, onPrevHole, onNextHole }: ScoreCa
   }, [game.players, game.scores, currentHole, holeData.par]);
   
   const handleScoreChange = (playerId: string, score: number) => {
-    setPlayerScores(prev => new Map(prev).set(playerId, score));
+    setPlayerScores(prev => {
+      const newScores = new Map(prev);
+      newScores.set(playerId, score);
+      
+      // Save scores immediately when changed
+      const scoreData: Score[] = Array.from(newScores.entries()).map(([id, strokes]) => ({
+        playerId: id,
+        holeNumber: currentHole.number,
+        strokes
+      }));
+      
+      // Update scores in the store
+      updateScores(scoreData);
+      
+      return newScores;
+    });
   };
   
   const handleNextHole = () => {
