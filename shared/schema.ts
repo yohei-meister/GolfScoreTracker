@@ -1,8 +1,9 @@
-import { pgTable, text, serial, integer, jsonb, boolean } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, jsonb, boolean, timestamp, primaryKey, uuid } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import { relations } from "drizzle-orm";
 
-// Player schema
+// Player schema for validation
 export const playerSchema = z.object({
   id: z.string(),
   name: z.string().min(1, "Player name is required"),
@@ -10,7 +11,7 @@ export const playerSchema = z.object({
 
 export type Player = z.infer<typeof playerSchema>;
 
-// Hole schema
+// Hole schema for validation
 export const holeSchema = z.object({
   number: z.number(),
   par: z.number(),
@@ -19,7 +20,7 @@ export const holeSchema = z.object({
 
 export type Hole = z.infer<typeof holeSchema>;
 
-// Score schema
+// Score schema for validation
 export const scoreSchema = z.object({
   playerId: z.string(),
   holeNumber: z.number(),
@@ -28,7 +29,7 @@ export const scoreSchema = z.object({
 
 export type Score = z.infer<typeof scoreSchema>;
 
-// Course schema
+// Course schema for validation
 export const courseSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -37,7 +38,7 @@ export const courseSchema = z.object({
 
 export type Course = z.infer<typeof courseSchema>;
 
-// Game schema
+// Game schema for validation
 export const gameSchema = z.object({
   id: z.string(),
   courseId: z.string(),
@@ -51,31 +52,122 @@ export const gameSchema = z.object({
 
 export type Game = z.infer<typeof gameSchema>;
 
-// Database tables for future use
+// Database tables
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const userRelations = relations(users, ({ many }) => ({
+  games: many(games)
+}));
+
 export const games = pgTable("games", {
-  id: serial("id").primaryKey(),
+  id: uuid("id").defaultRandom().primaryKey(),
   userId: integer("user_id").references(() => users.id),
   courseId: text("course_id").notNull(),
   courseName: text("course_name").notNull(),
   holeCount: integer("hole_count").notNull(),
-  players: jsonb("players").notNull(),
-  scores: jsonb("scores").notNull(),
   currentHole: integer("current_hole").notNull(),
   completed: boolean("completed").default(false),
-  createdAt: text("created_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const gameRelations = relations(games, ({ one, many }) => ({
+  user: one(users, {
+    fields: [games.userId],
+    references: [users.id],
+  }),
+  players: many(players),
+  holeInfo: many(holeInfo),
+  scores: many(scores),
+}));
+
+export const players = pgTable("players", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  gameId: uuid("game_id").notNull().references(() => games.id, { onDelete: "cascade" }),
+  name: text("name").notNull(),
+});
+
+export const playerRelations = relations(players, ({ one, many }) => ({
+  game: one(games, {
+    fields: [players.gameId],
+    references: [games.id],
+  }),
+  scores: many(scores)
+}));
+
+export const holeInfo = pgTable("hole_info", {
+  id: serial("id").primaryKey(),
+  gameId: uuid("game_id").notNull().references(() => games.id, { onDelete: "cascade" }),
+  holeNumber: integer("hole_number").notNull(),
+  par: integer("par").notNull(),
+  yards: integer("yards").notNull(),
+});
+
+export const holeInfoRelations = relations(holeInfo, ({ one }) => ({
+  game: one(games, {
+    fields: [holeInfo.gameId],
+    references: [games.id],
+  }),
+}));
+
+export const scores = pgTable("scores", {
+  id: serial("id").primaryKey(),
+  gameId: uuid("game_id").notNull().references(() => games.id, { onDelete: "cascade" }),
+  playerId: uuid("player_id").notNull().references(() => players.id, { onDelete: "cascade" }),
+  holeNumber: integer("hole_number").notNull(),
+  strokes: integer("strokes").notNull(),
+});
+
+export const scoreRelations = relations(scores, ({ one }) => ({
+  game: one(games, {
+    fields: [scores.gameId],
+    references: [games.id],
+  }),
+  player: one(players, {
+    fields: [scores.playerId],
+    references: [players.id],
+  }),
+}));
+
+// Create insert schemas
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   password: true,
 });
 
+export const insertGameSchema = createInsertSchema(games).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertPlayerSchema = createInsertSchema(players).omit({
+  id: true,
+});
+
+export const insertHoleInfoSchema = createInsertSchema(holeInfo).omit({
+  id: true,
+});
+
+export const insertScoreSchema = createInsertSchema(scores).omit({
+  id: true,
+});
+
+// Export types
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
+
+export type InsertGame = z.infer<typeof insertGameSchema>;
 export type GameRecord = typeof games.$inferSelect;
+
+export type InsertPlayer = z.infer<typeof insertPlayerSchema>;
+export type PlayerRecord = typeof players.$inferSelect;
+
+export type InsertHoleInfo = z.infer<typeof insertHoleInfoSchema>;
+export type HoleInfoRecord = typeof holeInfo.$inferSelect;
+
+export type InsertScore = z.infer<typeof insertScoreSchema>;
+export type ScoreRecord = typeof scores.$inferSelect;
