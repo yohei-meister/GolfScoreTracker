@@ -16,8 +16,11 @@ interface ScoreCardProps {
 
 export function ScoreCard({ game, currentHole, onPrevHole, onNextHole }: ScoreCardProps) {
   const { toast } = useToast();
-  const { updateScores } = useStore();
+  const { updateScores, courseHoles, updateHoleData } = useStore();
   const [playerScores, setPlayerScores] = useState<Map<string, number>>(new Map());
+  
+  // Use the stored hole data or fallback to the current hole's values
+  const holeData = courseHoles[currentHole.number] || { par: currentHole.par, yards: currentHole.yards };
   
   // Initialize player scores for the current hole
   useEffect(() => {
