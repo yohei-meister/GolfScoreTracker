@@ -33,11 +33,11 @@ export function ScoreCard({ game, currentHole, onPrevHole, onNextHole }: ScoreCa
       );
       
       // If there's an existing score, use it; otherwise, set a default score (par)
-      scoresMap.set(player.id, existingScore ? existingScore.strokes : currentHole.par);
+      scoresMap.set(player.id, existingScore ? existingScore.strokes : holeData.par);
     });
     
     setPlayerScores(scoresMap);
-  }, [game.players, game.scores, currentHole]);
+  }, [game.players, game.scores, currentHole, holeData.par]);
   
   const handleScoreChange = (playerId: string, score: number) => {
     setPlayerScores(prev => new Map(prev).set(playerId, score));
@@ -85,10 +85,12 @@ export function ScoreCard({ game, currentHole, onPrevHole, onNextHole }: ScoreCa
                 type="number" 
                 min="1"
                 max="10"
-                value={currentHole.par}
+                value={holeData.par}
                 onChange={(e) => {
-                  // Note: In a full implementation, we'd update the par for this hole
-                  // For now, we'll just show the editable field
+                  const newPar = parseInt(e.target.value);
+                  if (!isNaN(newPar) && newPar > 0 && newPar <= 10) {
+                    updateHoleData(currentHole.number, newPar, holeData.yards);
+                  }
                 }}
                 className="w-12 px-2 py-1 text-center border border-gray-300 rounded-md"
               />
@@ -98,10 +100,13 @@ export function ScoreCard({ game, currentHole, onPrevHole, onNextHole }: ScoreCa
               <input 
                 type="number"
                 min="1"
-                value={currentHole.yards}
+                max="999"
+                value={holeData.yards}
                 onChange={(e) => {
-                  // Note: In a full implementation, we'd update the yards for this hole
-                  // For now, we'll just show the editable field
+                  const newYards = parseInt(e.target.value);
+                  if (!isNaN(newYards) && newYards > 0) {
+                    updateHoleData(currentHole.number, holeData.par, newYards);
+                  }
                 }}
                 className="w-16 px-2 py-1 text-center border border-gray-300 rounded-md"
               />
