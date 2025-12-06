@@ -7,13 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { PlayerNameInput } from "@/components/PlayerNameInput";
 import { useStore } from "@/lib/store";
 import { v4 as uuidv4 } from "uuid";
-import { courses } from "@/lib/courseData";
 
 const formSchema = z.object({
   courseId: z.string({ required_error: "Please select a course" }),
@@ -27,20 +25,14 @@ const formSchema = z.object({
   ).min(1, "At least one player is required")
 });
 
-type FormValues = z.infer<typeof formSchema>;
-
 export default function Home() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const { initializeGame } = useStore();
   const [playerCount, setPlayerCount] = useState(1);
-  
-  // State for custom course
-  const [showCustomCourse, setShowCustomCourse] = useState(false);
   const [customCourseName, setCustomCourseName] = useState("");
   
-  // Setup form with validation
-  const form = useForm<FormValues>({
+  const form = useForm({
     resolver: zodResolver(formSchema),
     defaultValues: {
       courseId: "custom",
@@ -50,13 +42,11 @@ export default function Home() {
     }
   });
   
-  // Update players array when playerCount changes
   useEffect(() => {
     const currentPlayers = form.getValues().players || [];
     const newCount = playerCount;
     
     if (currentPlayers.length < newCount) {
-      // Add more player fields
       const playersToAdd = newCount - currentPlayers.length;
       const newPlayers = [...currentPlayers];
       
@@ -66,7 +56,6 @@ export default function Home() {
       
       form.setValue("players", newPlayers);
     } else if (currentPlayers.length > newCount) {
-      // Remove player fields
       const newPlayers = currentPlayers.slice(0, newCount);
       form.setValue("players", newPlayers);
     }
@@ -74,7 +63,6 @@ export default function Home() {
     form.setValue("playerCount", newCount);
   }, [playerCount, form]);
   
-  // Handle player count changes
   const decreasePlayerCount = () => {
     if (playerCount > 1) {
       setPlayerCount(playerCount - 1);
@@ -87,8 +75,7 @@ export default function Home() {
     }
   };
   
-  // Handle form submission
-  const onSubmit = (data: FormValues) => {
+  const onSubmit = (data) => {
     try {
       if (!customCourseName) {
         toast({
@@ -99,15 +86,8 @@ export default function Home() {
         return;
       }
       
-      // Create basic hole structure based on selected hole count
       const holeCount = parseInt(data.holeCount);
-      const holes = Array.from({ length: holeCount }, (_, i) => ({
-        number: i + 1,
-        par: 4, // Default par value
-        yards: 400 // Default yards value
-      }));
       
-      // Initialize new game with custom course
       initializeGame({
         id: uuidv4(),
         courseId: "custom",
@@ -119,7 +99,6 @@ export default function Home() {
         completed: false
       });
       
-      // Navigate to the game page
       navigate("/game");
     } catch (error) {
       console.error("Failed to start game:", error);
@@ -138,7 +117,6 @@ export default function Home() {
           <h2 className="text-lg font-semibold mb-4 text-neutral-dark">Game Setup</h2>
           
           <form onSubmit={form.handleSubmit(onSubmit)}>
-            {/* Course Input */}
             <div className="mb-4">
               <Label htmlFor="courseName" className="block text-sm font-medium text-gray-700 mb-1">
                 Golf Course Name
@@ -146,6 +124,7 @@ export default function Home() {
               <div className="relative">
                 <Input
                   id="courseName"
+                  data-testid="input-course-name"
                   placeholder="Enter course name"
                   value={customCourseName}
                   onChange={(e) => setCustomCourseName(e.target.value)}
@@ -154,22 +133,21 @@ export default function Home() {
               </div>
             </div>
             
-            {/* Course Type Selection */}
             <div className="mb-4">
               <Label className="block text-sm font-medium text-gray-700 mb-1">
                 Course Type
               </Label>
               <RadioGroup 
                 defaultValue={form.getValues("holeCount")}
-                onValueChange={(value) => form.setValue("holeCount", value as "9" | "18")}
+                onValueChange={(value) => form.setValue("holeCount", value)}
                 className="flex gap-4"
               >
                 <div className="flex items-center">
-                  <RadioGroupItem value="9" id="nineHoles" />
+                  <RadioGroupItem value="9" id="nineHoles" data-testid="radio-9-holes" />
                   <Label htmlFor="nineHoles" className="ml-2 text-sm text-gray-700">9 Holes</Label>
                 </div>
                 <div className="flex items-center">
-                  <RadioGroupItem value="18" id="eighteenHoles" />
+                  <RadioGroupItem value="18" id="eighteenHoles" data-testid="radio-18-holes" />
                   <Label htmlFor="eighteenHoles" className="ml-2 text-sm text-gray-700">18 Holes</Label>
                 </div>
               </RadioGroup>
@@ -178,7 +156,6 @@ export default function Home() {
               )}
             </div>
             
-            {/* Number of Players */}
             <div className="mb-4">
               <Label htmlFor="playerCount" className="block text-sm font-medium text-gray-700 mb-1">
                 Number of Players
@@ -188,6 +165,7 @@ export default function Home() {
                   type="button"
                   variant="outline"
                   onClick={decreasePlayerCount}
+                  data-testid="button-decrease-players"
                   className="px-3 py-1 rounded-l-md"
                 >
                   -
@@ -195,6 +173,7 @@ export default function Home() {
                 <Input 
                   type="number"
                   id="playerCount"
+                  data-testid="input-player-count"
                   value={playerCount}
                   readOnly
                   className="w-12 py-1 px-2 text-center rounded-none border-x-0"
@@ -203,6 +182,7 @@ export default function Home() {
                   type="button"
                   variant="outline"
                   onClick={increasePlayerCount}
+                  data-testid="button-increase-players"
                   className="px-3 py-1 rounded-r-md"
                 >
                   +
@@ -213,7 +193,6 @@ export default function Home() {
               )}
             </div>
             
-            {/* Player Names */}
             <div className="space-y-3 mb-5">
               {form.watch("players").map((player, index) => (
                 <PlayerNameInput
@@ -229,6 +208,7 @@ export default function Home() {
             
             <Button 
               type="submit"
+              data-testid="button-start-game"
               className="w-full py-2 px-4 bg-secondary text-white font-medium rounded-md hover:bg-green-600 transition"
             >
               Start Game

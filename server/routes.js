@@ -1,11 +1,9 @@
-import type { Express } from "express";
-import { createServer, type Server } from "http";
-import { storage } from "./storage";
+import { createServer } from "http";
+import { storage } from "./storage.js";
 import { z } from "zod";
-import { gameSchema } from "@shared/schema";
+import { gameSchema } from "../shared/schema.js";
 
-export async function registerRoutes(app: Express): Promise<Server> {
-  // Get current game
+export async function registerRoutes(app) {
   app.get("/api/game", async (req, res) => {
     try {
       const game = await storage.getCurrentGame();
@@ -18,7 +16,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Create new game
   app.post("/api/game", async (req, res) => {
     try {
       const gameData = gameSchema.parse(req.body);
@@ -32,7 +29,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Update game
   app.put("/api/game/:id", async (req, res) => {
     try {
       const { id } = req.params;
@@ -52,7 +48,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Update scores for a hole
   app.patch("/api/game/:id/scores", async (req, res) => {
     try {
       const { id } = req.params;
@@ -74,7 +69,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Complete game
   app.patch("/api/game/:id/complete", async (req, res) => {
     try {
       const { id } = req.params;

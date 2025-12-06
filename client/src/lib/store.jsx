@@ -1,36 +1,14 @@
-import { createContext, useContext, useState, ReactNode, useEffect } from "react";
-import { type Game, type Score, type Hole } from "@shared/schema";
+import { createContext, useContext, useState, useEffect } from "react";
 
-// Custom type for storing hole info
-export type CourseHoles = {
-  [holeNumber: number]: {
-    par: number;
-    yards: number;
-  };
-};
+const StoreContext = createContext(undefined);
 
-interface StoreContextType {
-  game: Game | null;
-  courseHoles: CourseHoles;
-  initializeGame: (gameData: Game) => void;
-  updateCurrentHole: (holeNumber: number) => void;
-  updateScores: (scores: Score[]) => void;
-  updateHoleData: (holeNumber: number, par: number, yards: number) => void;
-  completeGame: () => void;
-  resetGame: () => void;
-}
-
-const StoreContext = createContext<StoreContextType | undefined>(undefined);
-
-export function StoreProvider({ children }: { children: ReactNode }) {
-  const [game, setGame] = useState<Game | null>(() => {
-    // Try to load from localStorage on init
+export function StoreProvider({ children }) {
+  const [game, setGame] = useState(() => {
     const savedGame = localStorage.getItem("golfGame");
     return savedGame ? JSON.parse(savedGame) : null;
   });
   
-  // Store hole information separately to allow editing
-  const [courseHoles, setCourseHoles] = useState<CourseHoles>(() => {
+  const [courseHoles, setCourseHoles] = useState(() => {
     const savedHoles = localStorage.getItem("courseHoles");
     if (savedHoles) {
       return JSON.parse(savedHoles);
@@ -38,11 +16,9 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     return {};
   });
   
-  // Initialize default holes when a game is created
   useEffect(() => {
     if (game && Object.keys(courseHoles).length === 0) {
-      // Create default hole data if none exists
-      const defaultHoles: CourseHoles = {};
+      const defaultHoles = {};
       for (let i = 1; i <= game.holeCount; i++) {
         defaultHoles[i] = { par: 4, yards: 400 };
       }
@@ -51,13 +27,11 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     }
   }, [game, courseHoles]);
   
-  // Initialize a new game
-  const initializeGame = (gameData: Game) => {
+  const initializeGame = (gameData) => {
     setGame(gameData);
     localStorage.setItem("golfGame", JSON.stringify(gameData));
     
-    // Reset hole data when starting a new game
-    const defaultHoles: CourseHoles = {};
+    const defaultHoles = {};
     for (let i = 1; i <= gameData.holeCount; i++) {
       defaultHoles[i] = { par: 4, yards: 400 };
     }
@@ -65,8 +39,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     localStorage.setItem("courseHoles", JSON.stringify(defaultHoles));
   };
   
-  // Update current hole
-  const updateCurrentHole = (holeNumber: number) => {
+  const updateCurrentHole = (holeNumber) => {
     if (!game) return;
     
     const updatedGame = {
@@ -78,8 +51,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     localStorage.setItem("golfGame", JSON.stringify(updatedGame));
   };
   
-  // Update hole data (par and yards)
-  const updateHoleData = (holeNumber: number, par: number, yards: number) => {
+  const updateHoleData = (holeNumber, par, yards) => {
     const updatedHoles = {
       ...courseHoles,
       [holeNumber]: { par, yards }
@@ -89,18 +61,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     localStorage.setItem("courseHoles", JSON.stringify(updatedHoles));
   };
   
-  // Update scores for a hole
-  const updateScores = (newScores: Score[]) => {
+  const updateScores = (newScores) => {
     if (!game) return;
     
-    // Filter out scores for the current hole
     const filteredScores = game.scores.filter(
       score => !newScores.some(newScore => 
         newScore.playerId === score.playerId && newScore.holeNumber === score.holeNumber
       )
     );
     
-    // Add the new scores
     const updatedGame = {
       ...game,
       scores: [...filteredScores, ...newScores]
@@ -110,7 +79,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     localStorage.setItem("golfGame", JSON.stringify(updatedGame));
   };
   
-  // Mark game as completed
   const completeGame = () => {
     if (!game) return;
     
@@ -123,7 +91,6 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     localStorage.setItem("golfGame", JSON.stringify(completedGame));
   };
   
-  // Reset the game state
   const resetGame = () => {
     setGame(null);
     setCourseHoles({});

@@ -2,20 +2,26 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useStore } from "@/lib/store";
 import { getPlayerInitial, getPlayerColor, calculateTotalScore, calculateToPar } from "@/lib/utils";
 import { courses } from "@/lib/courseData";
-import { type Game } from "@shared/schema";
 
-interface ScoreSummaryProps {
-  game: Game;
-}
-
-export function ScoreSummary({ game }: ScoreSummaryProps) {
-  const currentCourse = courses.find(course => course.id === game.courseId);
-  const courseHoles = currentCourse?.holes.slice(0, game.holeCount) || [];
+export function ScoreSummary({ game }) {
+  const { courseHoles } = useStore();
   
-  // Calculate player scores and order by lowest score
+  const createHolesWithCustomPar = () => {
+    return Array.from({ length: game.holeCount }, (_, i) => ({
+      number: i + 1,
+      par: courseHoles[i + 1]?.par || 4,
+      yards: courseHoles[i + 1]?.yards || 400
+    }));
+  };
+  
+  const currentCourse = courses.find(course => course.id === game.courseId);
+  const gameHoles = game.courseId === "custom" 
+    ? createHolesWithCustomPar()
+    : currentCourse?.holes.slice(0, game.holeCount) || [];
+  
   const playerScores = game.players.map(player => {
     const totalScore = calculateTotalScore(game.scores, player.id);
-    const toPar = calculateToPar(game.scores, player.id, courseHoles);
+    const toPar = calculateToPar(game.scores, player.id, gameHoles);
     
     return {
       player,
@@ -53,18 +59,18 @@ export function ScoreSummary({ game }: ScoreSummaryProps) {
                     </div>
                   </div>
                 </td>
-                <td className="px-3 py-3 text-center font-medium">{totalScore}</td>
+                <td className="px-3 py-3 text-center font-medium" data-testid={`summary-total-${player.id}`}>{totalScore}</td>
                 <td className="px-3 py-3 text-center">
                   {toPar === 0 ? (
-                    <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800">
+                    <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-green-100 text-green-800" data-testid={`summary-par-${player.id}`}>
                       Even
                     </span>
                   ) : toPar > 0 ? (
-                    <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800">
+                    <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-red-100 text-red-800" data-testid={`summary-par-${player.id}`}>
                       +{toPar}
                     </span>
                   ) : (
-                    <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
+                    <span className="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800" data-testid={`summary-par-${player.id}`}>
                       {toPar}
                     </span>
                   )}

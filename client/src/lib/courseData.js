@@ -1,7 +1,4 @@
-import { type Course } from "@shared/schema";
-
-// Sample golf course data with hole details
-export const courses: Course[] = [
+export const courses = [
   {
     id: "pebble",
     name: "Pebble Beach Golf Links",

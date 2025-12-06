@@ -1,58 +1,31 @@
-import { db } from "./db";
+import { db } from "./db.js";
 import { 
-  type Game, 
-  type Player, 
-  type Score, 
-  type Hole,
-  type User,
-  type InsertUser,
   users,
   games,
   players,
   holeInfo,
   scores
-} from "@shared/schema";
+} from "../shared/schema.js";
 import { eq, and, desc } from "drizzle-orm";
 import { v4 as uuidv4 } from "uuid";
 
-export interface IStorage {
-  getUser(id: number): Promise<User | undefined>;
-  getUserByUsername(username: string): Promise<User | undefined>;
-  createUser(user: InsertUser): Promise<User>;
-  
-  // Game methods
-  getCurrentGame(): Promise<Game | undefined>;
-  createGame(game: Game): Promise<Game>;
-  getGame(id: string): Promise<Game | undefined>;
-  updateGame(id: string, game: Game): Promise<Game | undefined>;
-  updateScores(id: string, holeNumber: number, scores: Score[]): Promise<Game | undefined>;
-  completeGame(id: string): Promise<Game | undefined>;
-  
-  // Hole methods
-  getHoleInfo(gameId: string, holeNumber: number): Promise<Hole | undefined>;
-  updateHoleInfo(gameId: string, holeNumber: number, par: number, yards: number): Promise<Hole | undefined>;
-}
-
-export class DatabaseStorage implements IStorage {
-  // User methods
-  async getUser(id: number): Promise<User | undefined> {
+export class DatabaseStorage {
+  async getUser(id) {
     const result = await db.select().from(users).where(eq(users.id, id));
     return result[0];
   }
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
+  async getUserByUsername(username) {
     const result = await db.select().from(users).where(eq(users.username, username));
     return result[0];
   }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
+  async createUser(insertUser) {
     const result = await db.insert(users).values(insertUser).returning();
     return result[0];
   }
 
-  // Game methods
-  async getCurrentGame(): Promise<Game | undefined> {
-    // Get the most recent active game
+  async getCurrentGame() {
     const gameResults = await db.select().from(games)
       .where(eq(games.completed, false))
       .orderBy(desc(games.createdAt))
@@ -63,11 +36,9 @@ export class DatabaseStorage implements IStorage {
     return this.hydrateGame(gameResults[0].id);
   }
 
-  async createGame(game: Game): Promise<Game> {
-    // Generate a UUID if one doesn't exist
+  async createGame(game) {
     const gameId = game.id || uuidv4();
     
-    // Insert the game record
     await db.insert(games).values({
       id: gameId,
       courseId: game.courseId,
@@ -77,7 +48,6 @@ export class DatabaseStorage implements IStorage {
       completed: game.completed
     });
     
-    // Insert players
     for (const player of game.players) {
       await db.insert(players).values({
         id: player.id,
@@ -86,26 +56,23 @@ export class DatabaseStorage implements IStorage {
       });
     }
     
-    // Insert default hole info
     for (let i = 1; i <= game.holeCount; i++) {
       await db.insert(holeInfo).values({
         gameId: gameId,
         holeNumber: i,
-        par: 4, // Default par
-        yards: 400 // Default yards
+        par: 4,
+        yards: 400
       });
     }
     
-    // Get the created game with all its data
     return this.hydrateGame(gameId);
   }
 
-  async getGame(id: string): Promise<Game | undefined> {
+  async getGame(id) {
     return this.hydrateGame(id);
   }
 
-  async updateGame(id: string, game: Game): Promise<Game | undefined> {
-    // Update game record
+  async updateGame(id, game) {
     await db.update(games)
       .set({
         currentHole: game.currentHole,
@@ -116,15 +83,13 @@ export class DatabaseStorage implements IStorage {
     return this.hydrateGame(id);
   }
 
-  async updateScores(id: string, holeNumber: number, scoreData: Score[]): Promise<Game | undefined> {
-    // Delete existing scores for this hole
+  async updateScores(id, holeNumber, scoreData) {
     await db.delete(scores)
       .where(and(
         eq(scores.gameId, id),
         eq(scores.holeNumber, holeNumber)
       ));
     
-    // Insert new scores
     for (const score of scoreData) {
       await db.insert(scores).values({
         gameId: id,
@@ -134,7 +99,6 @@ export class DatabaseStorage implements IStorage {
       });
     }
     
-    // Update current hole
     await db.update(games)
       .set({ currentHole: holeNumber })
       .where(eq(games.id, id));
@@ -142,7 +106,7 @@ export class DatabaseStorage implements IStorage {
     return this.hydrateGame(id);
   }
 
-  async completeGame(id: string): Promise<Game | undefined> {
+  async completeGame(id) {
     await db.update(games)
       .set({ completed: true })
       .where(eq(games.id, id));
@@ -150,8 +114,7 @@ export class DatabaseStorage implements IStorage {
     return this.hydrateGame(id);
   }
   
-  // Hole methods
-  async getHoleInfo(gameId: string, holeNumber: number): Promise<Hole | undefined> {
+  async getHoleInfo(gameId, holeNumber) {
     const result = await db.select().from(holeInfo)
       .where(and(
         eq(holeInfo.gameId, gameId),
@@ -167,8 +130,7 @@ export class DatabaseStorage implements IStorage {
     };
   }
   
-  async updateHoleInfo(gameId: string, holeNumber: number, par: number, yards: number): Promise<Hole | undefined> {
-    // Check if hole info exists
+  async updateHoleInfo(gameId, holeNumber, par, yards) {
     const existingResult = await db.select().from(holeInfo)
       .where(and(
         eq(holeInfo.gameId, gameId),
@@ -176,7 +138,6 @@ export class DatabaseStorage implements IStorage {
       ));
     
     if (existingResult.length > 0) {
-      // Update existing
       await db.update(holeInfo)
         .set({ par, yards })
         .where(and(
@@ -184,7 +145,6 @@ export class DatabaseStorage implements IStorage {
           eq(holeInfo.holeNumber, holeNumber)
         ));
     } else {
-      // Insert new
       await db.insert(holeInfo).values({
         gameId,
         holeNumber,
@@ -196,22 +156,16 @@ export class DatabaseStorage implements IStorage {
     return this.getHoleInfo(gameId, holeNumber);
   }
   
-  // Helper method to build a complete Game object from database records
-  private async hydrateGame(gameId: string): Promise<Game | undefined> {
-    // Get game record
+  async hydrateGame(gameId) {
     const gameResults = await db.select().from(games).where(eq(games.id, gameId));
     if (gameResults.length === 0) return undefined;
     
     const gameRecord = gameResults[0];
     
-    // Get players
     const playerResults = await db.select().from(players).where(eq(players.gameId, gameId));
-    
-    // Get scores
     const scoreResults = await db.select().from(scores).where(eq(scores.gameId, gameId));
     
-    // Build game object
-    const game: Game = {
+    const game = {
       id: gameRecord.id,
       courseId: gameRecord.courseId,
       courseName: gameRecord.courseName,
@@ -230,70 +184,62 @@ export class DatabaseStorage implements IStorage {
   }
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<number, User>;
-  private games: Map<string, Game>;
-  private currentGameId?: string;
-  currentId: number;
-
+export class MemStorage {
   constructor() {
     this.users = new Map();
     this.games = new Map();
+    this.currentGameId = undefined;
     this.currentId = 1;
   }
 
-  // User methods
-  async getUser(id: number): Promise<User | undefined> {
+  async getUser(id) {
     return this.users.get(id);
   }
 
-  async getUserByUsername(username: string): Promise<User | undefined> {
+  async getUserByUsername(username) {
     return Array.from(this.users.values()).find(
       (user) => user.username === username,
     );
   }
 
-  async createUser(insertUser: InsertUser): Promise<User> {
+  async createUser(insertUser) {
     const id = this.currentId++;
-    const user: User = { ...insertUser, id };
+    const user = { ...insertUser, id };
     this.users.set(id, user);
     return user;
   }
 
-  // Game methods
-  async getCurrentGame(): Promise<Game | undefined> {
+  async getCurrentGame() {
     if (!this.currentGameId) return undefined;
     return this.games.get(this.currentGameId);
   }
 
-  async createGame(game: Game): Promise<Game> {
+  async createGame(game) {
     this.games.set(game.id, game);
     this.currentGameId = game.id;
     return game;
   }
 
-  async getGame(id: string): Promise<Game | undefined> {
+  async getGame(id) {
     return this.games.get(id);
   }
 
-  async updateGame(id: string, game: Game): Promise<Game | undefined> {
+  async updateGame(id, game) {
     const existing = this.games.get(id);
     if (!existing) return undefined;
     this.games.set(id, game);
     return game;
   }
 
-  async updateScores(id: string, holeNumber: number, scores: Score[]): Promise<Game | undefined> {
+  async updateScores(id, holeNumber, newScores) {
     const game = this.games.get(id);
     if (!game) return undefined;
     
-    // Remove existing scores for this hole
     const filteredScores = game.scores.filter(score => score.holeNumber !== holeNumber);
     
-    // Add new scores
-    const updatedGame: Game = {
+    const updatedGame = {
       ...game,
-      scores: [...filteredScores, ...scores],
+      scores: [...filteredScores, ...newScores],
       currentHole: holeNumber
     };
     
@@ -301,11 +247,11 @@ export class MemStorage implements IStorage {
     return updatedGame;
   }
 
-  async completeGame(id: string): Promise<Game | undefined> {
+  async completeGame(id) {
     const game = this.games.get(id);
     if (!game) return undefined;
     
-    const completedGame: Game = {
+    const completedGame = {
       ...game,
       completed: true
     };
@@ -318,18 +264,16 @@ export class MemStorage implements IStorage {
     return completedGame;
   }
   
-  // Hole methods
-  async getHoleInfo(gameId: string, holeNumber: number): Promise<Hole | undefined> {
+  async getHoleInfo(gameId, holeNumber) {
     const game = this.games.get(gameId);
     if (!game) return undefined;
     
     return { number: holeNumber, par: 4, yards: 400 };
   }
   
-  async updateHoleInfo(gameId: string, holeNumber: number, par: number, yards: number): Promise<Hole | undefined> {
+  async updateHoleInfo(gameId, holeNumber, par, yards) {
     return { number: holeNumber, par, yards };
   }
 }
 
-// Use database storage
 export const storage = new DatabaseStorage();

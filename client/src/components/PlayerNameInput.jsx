@@ -1,13 +1,7 @@
-import { UseFormReturn } from "react-hook-form";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-interface PlayerNameInputProps {
-  index: number;
-  form: UseFormReturn<any>;
-}
-
-export function PlayerNameInput({ index, form }: PlayerNameInputProps) {
+export function PlayerNameInput({ index, form }) {
   const players = form.getValues().players || [];
   const player = players[index];
   
@@ -23,6 +17,7 @@ export function PlayerNameInput({ index, form }: PlayerNameInputProps) {
       </Label>
       <Input
         id={`player-${index}`}
+        data-testid={`input-player-${index}`}
         placeholder="Enter name"
         defaultValue={player.name}
         onChange={(e) => {

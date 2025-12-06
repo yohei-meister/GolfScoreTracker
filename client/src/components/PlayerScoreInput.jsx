@@ -1,14 +1,6 @@
-import { type Player } from "@shared/schema";
 import { getPlayerInitial, getPlayerColor } from "@/lib/utils";
 
-interface PlayerScoreInputProps {
-  player: Player;
-  score: number;
-  scoreRelative: number;
-  onScoreChange: (score: number) => void;
-}
-
-export function PlayerScoreInput({ player, score, scoreRelative, onScoreChange }: PlayerScoreInputProps) {
+export function PlayerScoreInput({ player, score, scoreRelative, onScoreChange }) {
   const decrementScore = () => {
     if (score > 1) {
       onScoreChange(score - 1);
@@ -35,16 +27,17 @@ export function PlayerScoreInput({ player, score, scoreRelative, onScoreChange }
             {getPlayerInitial(player.name)}
           </div>
           <div className="ml-3">
-            <p className="font-medium text-gray-900">{player.name}</p>
+            <p className="font-medium text-gray-900" data-testid={`text-player-name-${player.id}`}>{player.name}</p>
           </div>
         </div>
       </td>
-      <td className={`px-3 py-3 text-center font-medium ${scoreClass}`}>{score}</td>
+      <td className={`px-3 py-3 text-center font-medium ${scoreClass}`} data-testid={`text-score-${player.id}`}>{score}</td>
       <td className="px-3 py-3">
         <div className="flex justify-center items-center">
           <button 
             className="decrement-score p-1 rounded-l border border-gray-300 bg-gray-50 hover:bg-gray-100"
             onClick={decrementScore}
+            data-testid={`button-decrement-${player.id}`}
           >
             -
           </button>
@@ -54,10 +47,12 @@ export function PlayerScoreInput({ player, score, scoreRelative, onScoreChange }
             value={score} 
             min="1" 
             readOnly 
+            data-testid={`input-score-${player.id}`}
           />
           <button 
             className="increment-score p-1 rounded-r border border-gray-300 bg-gray-50 hover:bg-gray-100"
             onClick={incrementScore}
+            data-testid={`button-increment-${player.id}`}
           >
             +
           </button>

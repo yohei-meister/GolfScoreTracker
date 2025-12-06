@@ -11,10 +11,9 @@ import { getPlayerInitial, getPlayerColor, calculateTotalScore, calculateToPar }
 export default function Summary() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
-  const { game, resetGame } = useStore();
+  const { game, resetGame, courseHoles } = useStore();
   
   useEffect(() => {
-    // If no game is found, redirect to home
     if (!game) {
       toast({
         title: "No active game",
@@ -29,17 +28,15 @@ export default function Summary() {
     return null;
   }
   
-  // Create default holes for custom courses
-  const createDefaultHoles = (count: number) => {
+  const createDefaultHoles = (count) => {
     return Array.from({ length: count }, (_, i) => ({
       number: i + 1,
-      par: 4,
-      yards: 400
+      par: courseHoles[i + 1]?.par || 4,
+      yards: courseHoles[i + 1]?.yards || 400
     }));
   };
   
-  // Get hole information
-  const courseHoles = game.courseId === "custom"
+  const gameHoles = game.courseId === "custom"
     ? createDefaultHoles(game.holeCount)
     : courses.find(course => course.id === game.courseId)?.holes.slice(0, game.holeCount) || [];
   
@@ -49,17 +46,15 @@ export default function Summary() {
   };
   
   const handleShareResults = () => {
-    // This would be implemented in a future version
     toast({
       title: "Coming Soon",
       description: "Sharing results will be available in a future update!",
     });
   };
   
-  // Calculate player scores and order by lowest score
   const playerScores = game.players.map(player => {
     const totalScore = calculateTotalScore(game.scores, player.id);
-    const toPar = calculateToPar(game.scores, player.id, courseHoles);
+    const toPar = calculateToPar(game.scores, player.id, gameHoles);
     
     return {
       player,
@@ -68,8 +63,7 @@ export default function Summary() {
     };
   }).sort((a, b) => a.totalScore - b.totalScore);
   
-  // Calculate total par for the course
-  const totalPar = courseHoles.reduce((sum, hole) => sum + hole.par, 0);
+  const totalPar = gameHoles.reduce((sum, hole) => sum + hole.par, 0);
   
   return (
     <div className="p-4">
@@ -79,15 +73,15 @@ export default function Summary() {
             <div className="inline-block p-4 rounded-full bg-secondary bg-opacity-20 mb-3">
               <TrophyIcon className="h-10 w-10 text-secondary" />
             </div>
-            <h2 className="text-xl font-semibold text-neutral-dark">Game Completed!</h2>
-            <p className="text-gray-600">{game.courseName}</p>
+            <h2 className="text-xl font-semibold text-neutral-dark" data-testid="text-game-completed">Game Completed!</h2>
+            <p className="text-gray-600" data-testid="text-summary-course-name">{game.courseName}</p>
           </div>
           
           <div className="mb-6">
             <h3 className="text-lg font-semibold mb-3">Final Scores</h3>
             <div className="space-y-3">
               {playerScores.map(({ player, totalScore, toPar }) => (
-                <div key={player.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div key={player.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg" data-testid={`card-player-score-${player.id}`}>
                   <div className="flex items-center">
                     <div 
                       className={`flex-shrink-0 h-10 w-10 text-white rounded-full flex items-center justify-center font-semibold ${getPlayerColor(player.id)}`}
@@ -95,13 +89,13 @@ export default function Summary() {
                       {getPlayerInitial(player.name)}
                     </div>
                     <div className="ml-3">
-                      <p className="font-medium text-gray-900">{player.name}</p>
+                      <p className="font-medium text-gray-900" data-testid={`text-player-name-${player.id}`}>{player.name}</p>
                       <p className="text-sm text-gray-500">{game.holeCount} holes</p>
                     </div>
                   </div>
                   <div className="text-right">
-                    <p className="text-xl font-bold">{totalScore}</p>
-                    <span className={`text-sm ${toPar === 0 ? 'text-green-600' : toPar > 0 ? 'text-red-600' : 'text-blue-600'}`}>
+                    <p className="text-xl font-bold" data-testid={`text-total-score-${player.id}`}>{totalScore}</p>
+                    <span className={`text-sm ${toPar === 0 ? 'text-green-600' : toPar > 0 ? 'text-red-600' : 'text-blue-600'}`} data-testid={`text-to-par-${player.id}`}>
                       {toPar === 0 ? 'Even par' : toPar > 0 ? `+${toPar}` : toPar}
                     </span>
                   </div>
@@ -113,6 +107,7 @@ export default function Summary() {
           <div className="grid grid-cols-2 gap-3">
             <Button 
               onClick={handleNewGame}
+              data-testid="button-new-game"
               className="py-2 px-4 bg-primary text-white font-medium rounded-md hover:bg-blue-600 transition flex items-center justify-center"
             >
               <ListRestart className="h-4 w-4 mr-1" /> New Game
@@ -120,6 +115,7 @@ export default function Summary() {
             <Button 
               variant="outline"
               onClick={handleShareResults}
+              data-testid="button-share"
               className="py-2 px-4 text-primary font-medium rounded-md border border-primary hover:bg-blue-50 transition flex items-center justify-center"
             >
               <ShareIcon className="h-4 w-4 mr-1" /> Share
@@ -143,7 +139,7 @@ export default function Summary() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-200 text-sm">
-                {courseHoles.map((hole) => (
+                {gameHoles.map((hole) => (
                   <tr key={hole.number}>
                     <td className="px-2 py-2 font-medium">{hole.number}</td>
                     <td className="px-2 py-2 text-center">{hole.par}</td>
@@ -152,7 +148,7 @@ export default function Summary() {
                         s => s.playerId === player.id && s.holeNumber === hole.number
                       );
                       return (
-                        <td key={player.id} className="px-2 py-2 text-center">
+                        <td key={player.id} className="px-2 py-2 text-center" data-testid={`cell-score-${player.id}-${hole.number}`}>
                           {score ? score.strokes : '-'}
                         </td>
                       );
@@ -163,7 +159,7 @@ export default function Summary() {
                   <td className="px-2 py-2">Total</td>
                   <td className="px-2 py-2 text-center">{totalPar}</td>
                   {game.players.map(player => (
-                    <td key={player.id} className="px-2 py-2 text-center">
+                    <td key={player.id} className="px-2 py-2 text-center" data-testid={`cell-total-${player.id}`}>
                       {calculateTotalScore(game.scores, player.id)}
                     </td>
                   ))}
