@@ -276,4 +276,4 @@ export class MemStorage {
   }
 }
 
-export const storage = new DatabaseStorage();
+export const storage = new MemStorage();
