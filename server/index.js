@@ -41,30 +41,57 @@ app.use((req, res, next) => {
   next();
 });
 
-// Async server initialization
-(async () => {
-  // Register all API routes and get HTTP server instance
-  const server = await registerRoutes(app);
+// Error handling middleware: Catch and format unhandled errors
+app.use((err, _req, res, _next) => {
+  const status = err.status || err.statusCode || 500;
+  const message = err.message || "Internal Server Error";
 
-  // Error handling middleware: Catch and format unhandled errors
-  app.use((err, _req, res, _next) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
+  res.status(status).json({ message });
+  throw err;
+});
 
-    res.status(status).json({ message });
-    throw err;
-  });
+// Initialize app asynchronously
+let appInitialized = false;
+let initializationPromise = null;
+let httpServer = null;
 
-  // Environment-based setup: Vite dev server in development, static files in production
-  if (app.get("env") === "development") {
-    await setupVite(app, server);
-  } else {
-    serveStatic(app);
-  }
+async function initializeApp() {
+  if (appInitialized) return { app, server: httpServer };
+  if (initializationPromise) return initializationPromise;
 
-  // Start HTTP server listening on port 5000
-  const port = 5000;
-  server.listen(port, () => {
-    log(`serving on port ${port}`);
-  });
-})();
+  initializationPromise = (async () => {
+    // Register all API routes and get HTTP server instance
+    httpServer = await registerRoutes(app);
+
+    // Environment-based setup: Vite dev server in development, static files in production
+    if (app.get("env") === "development") {
+      await setupVite(app, httpServer);
+    } else {
+      serveStatic(app);
+    }
+
+    appInitialized = true;
+    return { app, server: httpServer };
+  })();
+
+  return initializationPromise;
+}
+
+// Export handler for Vercel serverless functions
+export default async function handler(req, res) {
+  await initializeApp();
+  return app(req, res);
+}
+
+// Traditional server mode - start listening (only if not on Vercel)
+if (!process.env.VERCEL) {
+  (async () => {
+    const { server } = await initializeApp();
+    
+    const port = process.env.PORT || 5000;
+    const host = process.env.HOST || "0.0.0.0";
+    server.listen(port, host, () => {
+      log(`serving on port ${port} (host: ${host})`);
+    });
+  })();
+}
