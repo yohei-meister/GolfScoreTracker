@@ -1,7 +1,7 @@
 // Import Express framework and route/utility modules
 import express from "express";
 import { registerRoutes } from "./routes.js";
-import { setupVite, serveStatic, log } from "./vite.js";
+import { serveStatic, log } from "./utils.js";
 
 // Initialize Express application
 const app = express();
@@ -71,6 +71,8 @@ async function initializeApp() {
       // Environment-based setup: Vite dev server in development, static files in production
       if (app.get("env") === "development") {
         console.log('Setting up Vite dev server...');
+        // Dynamically import Vite only in development to avoid bundling it in production
+        const { setupVite } = await import("./vite.js");
         await setupVite(app, httpServer);
       } else {
         console.log('Setting up static file serving...');
