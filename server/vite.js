@@ -75,15 +75,26 @@ export function serveStatic(app) {
   const distPath = path.resolve(__dirname, "..", "dist", "public");
 
   if (!fs.existsSync(distPath)) {
-    throw new Error(
-      `Could not find the build directory: ${distPath}, make sure to build the client first`
+    console.warn(
+      `Warning: Could not find the build directory: ${distPath}. Static files may not be available.`
     );
+    // Don't throw - just log a warning and continue
+    // This allows the API to still work even if static files aren't built
+    app.use("*", (_req, res) => {
+      res.status(404).json({ message: "Static files not found. Please ensure the build completed successfully." });
+    });
+    return;
   }
 
   app.use(express.static(distPath));
 
   // fall through to index.html if the file doesn't exist
   app.use("*", (_req, res) => {
-    res.sendFile(path.resolve(distPath, "index.html"));
+    const indexPath = path.resolve(distPath, "index.html");
+    if (fs.existsSync(indexPath)) {
+      res.sendFile(indexPath);
+    } else {
+      res.status(404).json({ message: "index.html not found" });
+    }
   });
 }

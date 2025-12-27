@@ -46,8 +46,10 @@ app.use((err, _req, res, _next) => {
   const status = err.status || err.statusCode || 500;
   const message = err.message || "Internal Server Error";
 
-  res.status(status).json({ message });
-  throw err;
+  console.error('Express error:', err);
+  if (!res.headersSent) {
+    res.status(status).json({ message });
+  }
 });
 
 // Initialize app asynchronously
@@ -60,18 +62,28 @@ async function initializeApp() {
   if (initializationPromise) return initializationPromise;
 
   initializationPromise = (async () => {
-    // Register all API routes and get HTTP server instance
-    httpServer = await registerRoutes(app);
+    try {
+      console.log('Initializing app...');
+      // Register all API routes and get HTTP server instance
+      httpServer = await registerRoutes(app);
+      console.log('Routes registered');
 
-    // Environment-based setup: Vite dev server in development, static files in production
-    if (app.get("env") === "development") {
-      await setupVite(app, httpServer);
-    } else {
-      serveStatic(app);
+      // Environment-based setup: Vite dev server in development, static files in production
+      if (app.get("env") === "development") {
+        console.log('Setting up Vite dev server...');
+        await setupVite(app, httpServer);
+      } else {
+        console.log('Setting up static file serving...');
+        serveStatic(app);
+      }
+
+      appInitialized = true;
+      console.log('App initialized successfully');
+      return { app, server: httpServer };
+    } catch (error) {
+      console.error('Error initializing app:', error);
+      throw error;
     }
-
-    appInitialized = true;
-    return { app, server: httpServer };
   })();
 
   return initializationPromise;
@@ -79,8 +91,18 @@ async function initializeApp() {
 
 // Export handler for Vercel serverless functions
 export default async function handler(req, res) {
-  await initializeApp();
-  return app(req, res);
+  try {
+    await initializeApp();
+    return app(req, res);
+  } catch (error) {
+    console.error('Handler error:', error);
+    if (!res.headersSent) {
+      res.status(500).json({ 
+        message: 'Internal Server Error',
+        error: process.env.NODE_ENV === 'development' ? error.message : undefined
+      });
+    }
+  }
 }
 
 // Traditional server mode - start listening (only if not on Vercel)
