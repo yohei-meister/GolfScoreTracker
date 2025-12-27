@@ -74,19 +74,43 @@ export default function Summary() {
 
   const totalPar = gameHoles.reduce((sum, hole) => sum + hole.par, 0);
 
+  // Check if all holes have scores for all players
+  const areAllHolesCompleted = () => {
+    for (let holeNumber = 1; holeNumber <= game.holeCount; holeNumber++) {
+      for (const player of game.players) {
+        const hasScore = game.scores.some(
+          (score) =>
+            score.playerId === player.id && score.holeNumber === holeNumber
+        );
+        if (!hasScore) {
+          return false;
+        }
+      }
+    }
+    return true;
+  };
+
+  // Show "Game Completed!" if:
+  // 1. The game is marked as completed (Finish button was pressed)
+  // 2. All holes have scores for all players
+  const isGameCompleted = game.completed || areAllHolesCompleted();
+  const gameStatusText = isGameCompleted ? "Game Completed!" : "Playing";
+
   return (
     <div className="p-4">
       <Card className="bg-white rounded-lg shadow-md mb-4">
         <CardContent className="p-5">
           <div className="text-center mb-6">
-            <div className="inline-block p-4 rounded-full bg-secondary bg-opacity-20 mb-3">
-              <TrophyIcon className="h-10 w-10 text-secondary" />
-            </div>
+            {isGameCompleted && (
+              <div className="inline-block p-4 rounded-full bg-secondary bg-opacity-20 mb-3">
+                <TrophyIcon className="h-10 w-10 text-secondary" />
+              </div>
+            )}
             <h2
               className="text-xl font-semibold text-neutral-dark"
               data-testid="text-game-completed"
             >
-              Game Completed!
+              {gameStatusText}
             </h2>
             <p className="text-gray-600" data-testid="text-summary-course-name">
               {game.courseName}
