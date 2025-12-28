@@ -56,3 +56,11 @@
     @apply font-sans antialiased bg-background text-foreground;
   }
 }
+
+/* Mobile touch improvements */
+@layer utilities {
+  .touch-manipulation {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+}

@@ -102,20 +102,45 @@ export function ScoreCard({ game, currentHole, onPrevHole, onNextHole }) {
           </h3>
           <div className="flex items-center text-sm">
             <span className="text-sm mr-1">Par:</span>
-            <input
-              type="number"
-              min="1"
-              max="10"
-              value={holeData.par}
-              data-testid="input-par"
-              onChange={(e) => {
-                const newPar = parseInt(e.target.value);
-                if (!isNaN(newPar) && newPar > 0 && newPar <= 10) {
+            <div className="flex items-center border border-gray-300 rounded-md">
+              <button
+                type="button"
+                onClick={() => {
+                  const newPar = Math.max(1, holeData.par - 1);
                   updateHoleData(currentHole.number, newPar);
-                }
-              }}
-              className="w-12 px-2 py-1 text-center border border-gray-300 rounded-md"
-            />
+                }}
+                className="px-2 py-1 text-lg font-semibold text-gray-600 hover:bg-gray-100 active:bg-gray-200 touch-manipulation"
+                aria-label="Decrease par"
+              >
+                −
+              </button>
+              <input
+                type="number"
+                min="1"
+                max="10"
+                value={holeData.par}
+                data-testid="input-par"
+                onChange={(e) => {
+                  const newPar = parseInt(e.target.value);
+                  if (!isNaN(newPar) && newPar > 0 && newPar <= 10) {
+                    updateHoleData(currentHole.number, newPar);
+                  }
+                }}
+                className="w-12 px-2 py-1 text-center border-x border-gray-300 focus:outline-none focus:ring-2 focus:ring-primary touch-manipulation text-base"
+                style={{ WebkitAppearance: "none", MozAppearance: "textfield" }}
+              />
+              <button
+                type="button"
+                onClick={() => {
+                  const newPar = Math.min(10, holeData.par + 1);
+                  updateHoleData(currentHole.number, newPar);
+                }}
+                className="px-2 py-1 text-lg font-semibold text-gray-600 hover:bg-gray-100 active:bg-gray-200 touch-manipulation"
+                aria-label="Increase par"
+              >
+                +
+              </button>
+            </div>
           </div>
         </div>
 
