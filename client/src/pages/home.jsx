@@ -209,7 +209,7 @@ export default function Home() {
             <Button 
               type="submit"
               data-testid="button-start-game"
-              className="w-full py-2 px-4 bg-secondary text-white font-medium rounded-md hover:bg-green-600 transition"
+              className="w-full py-2 px-4 bg-green-600 text-white font-medium rounded-md hover:bg-green-700 transition"
             >
               Start Game
             </Button>
