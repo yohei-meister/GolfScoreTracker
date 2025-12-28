@@ -19,18 +19,47 @@ export function log(message, source = "express") {
 }
 
 export function serveStatic(app) {
-  // In Vercel, static files in the 'public' directory are served automatically by the platform
-  // We only need to handle SPA routing (fallback to index.html for non-API routes)
+  // In Vercel, we need to serve static files from the public directory
+  // and handle SPA routing (fallback to index.html for non-API routes)
   if (process.env.VERCEL) {
-    // On Vercel, static assets are served by the platform from the 'public' directory
-    // We only handle SPA routing - serve index.html for all non-API routes
+    // Try to find the public directory
+    const possiblePublicDirs = [
+      path.resolve(process.cwd(), "public"),
+      path.resolve(__dirname, "..", "public"),
+      path.resolve(process.cwd(), "dist", "public"),
+      path.resolve(__dirname, "..", "dist", "public")
+    ];
+    
+    let publicDir = null;
+    for (const dir of possiblePublicDirs) {
+      if (fs.existsSync(dir)) {
+        publicDir = dir;
+        break;
+      }
+    }
+    
+    if (publicDir) {
+      console.log(`Serving static files from: ${publicDir}`);
+      // Serve static files from the public directory
+      app.use(express.static(publicDir));
+    } else {
+      console.warn("Public directory not found. Static files may not be available.");
+    }
+    
+    // Handle SPA routing - serve index.html for all non-API, non-asset routes
     app.use("*", (req, res) => {
-      // Skip API routes - they're handled separately
+      // Skip API routes
       if (req.path.startsWith("/api")) {
         return;
       }
       
-      // Try to find index.html in the public directory
+      // Skip if it's a static asset request (should have been handled by express.static)
+      const isAsset = /\.(js|css|ico|png|jpg|jpeg|gif|svg|woff|woff2|ttf|eot|json|map)$/i.test(req.path);
+      if (isAsset && !res.headersSent) {
+        return res.status(404).json({ message: "Asset not found" });
+      }
+      
+      // Try to find index.html
       const possiblePaths = [
         path.resolve(process.cwd(), "public", "index.html"),
         path.resolve(__dirname, "..", "public", "index.html"),
