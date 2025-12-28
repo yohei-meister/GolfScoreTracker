@@ -40,10 +40,26 @@ export function serveStatic(app) {
     
     if (publicDir) {
       console.log(`Serving static files from: ${publicDir}`);
+      // List files in the directory for debugging
+      try {
+        const files = fs.readdirSync(publicDir);
+        console.log(`Files in public directory: ${files.join(", ")}`);
+        if (fs.existsSync(path.join(publicDir, "index.html"))) {
+          const htmlContent = fs.readFileSync(path.join(publicDir, "index.html"), "utf-8");
+          console.log("index.html found. Checking for script tags...");
+          const scriptMatches = htmlContent.match(/<script[^>]*src=["']([^"']+)["']/g);
+          if (scriptMatches) {
+            console.log("Script tags in HTML:", scriptMatches);
+          }
+        }
+      } catch (e) {
+        console.error("Error reading public directory:", e);
+      }
       // Serve static files from the public directory
-      app.use(express.static(publicDir));
+      app.use(express.static(publicDir, { index: false }));
     } else {
       console.warn("Public directory not found. Static files may not be available.");
+      console.warn("Checked paths:", possiblePublicDirs);
     }
     
     // Handle SPA routing - serve index.html for all non-API, non-asset routes
