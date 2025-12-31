@@ -1,74 +1,88 @@
-import { db } from "./db.js";
-import { users, games, players, holeInfo, scores } from "../shared/schema.js";
-import { eq, and, desc } from "drizzle-orm";
+import { db } from "./firebase.js";
 import { v4 as uuidv4 } from "uuid";
 
-export class DatabaseStorage {
+export class FirestoreStorage {
   constructor() {
     if (!db) {
-      throw new Error("DATABASE_URL not set; DatabaseStorage is unavailable.");
+      throw new Error("Firebase not initialized; FirestoreStorage is unavailable.");
     }
   }
 
   async getUser(id) {
-    const result = await db.select().from(users).where(eq(users.id, id));
-    return result[0];
+    const userDoc = await db.collection("users").doc(id.toString()).get();
+    if (!userDoc.exists) return undefined;
+    return { id: userDoc.id, ...userDoc.data() };
   }
 
   async getUserByUsername(username) {
-    const result = await db
-      .select()
-      .from(users)
-      .where(eq(users.username, username));
-    return result[0];
+    const usersSnapshot = await db
+      .collection("users")
+      .where("username", "==", username)
+      .limit(1)
+      .get();
+    
+    if (usersSnapshot.empty) return undefined;
+    const userDoc = usersSnapshot.docs[0];
+    return { id: userDoc.id, ...userDoc.data() };
   }
 
   async createUser(insertUser) {
-    const result = await db.insert(users).values(insertUser).returning();
-    return result[0];
+    const userRef = db.collection("users").doc();
+    await userRef.set({
+      ...insertUser,
+      createdAt: new Date(),
+    });
+    return { id: userRef.id, ...insertUser };
   }
 
   async getCurrentGame() {
-    const gameResults = await db
-      .select()
-      .from(games)
-      .where(eq(games.completed, false))
-      .orderBy(desc(games.createdAt))
-      .limit(1);
+    const gamesSnapshot = await db
+      .collection("games")
+      .where("completed", "==", false)
+      .orderBy("createdAt", "desc")
+      .limit(1)
+      .get();
 
-    if (gameResults.length === 0) return undefined;
+    if (gamesSnapshot.empty) return undefined;
 
-    return this.hydrateGame(gameResults[0].id);
+    const gameDoc = gamesSnapshot.docs[0];
+    return this.hydrateGame(gameDoc.id);
   }
 
   async createGame(game) {
     const gameId = game.id || uuidv4();
+    const gameRef = db.collection("games").doc(gameId);
 
-    await db.insert(games).values({
-      id: gameId,
+    // Create game document
+    await gameRef.set({
       courseId: game.courseId,
       courseName: game.courseName,
       holeCount: game.holeCount,
       currentHole: game.currentHole,
-      completed: game.completed
+      completed: game.completed || false,
+      createdAt: new Date(),
     });
 
+    // Create players subcollection
+    const playersRef = gameRef.collection("players");
     for (const player of game.players) {
-      await db.insert(players).values({
-        id: player.id,
-        gameId: gameId,
-        name: player.name
+      await playersRef.doc(player.id).set({
+        name: player.name,
       });
     }
 
+    // Create hole info subcollection
+    const holesRef = gameRef.collection("holes");
     for (let i = 1; i <= game.holeCount; i++) {
-      await db.insert(holeInfo).values({
-        gameId: gameId,
+      await holesRef.doc(i.toString()).set({
         holeNumber: i,
         par: 4,
-        yards: 400
+        yards: 400,
       });
     }
+
+    // Initialize scores subcollection (empty)
+    // Scores will be added as they're recorded
 
     return this.hydrateGame(gameId);
   }
@@ -78,123 +92,133 @@ export class DatabaseStorage {
   }
 
   async updateGame(id, game) {
-    await db
-      .update(games)
-      .set({
-        currentHole: game.currentHole,
-        completed: game.completed
-      })
-      .where(eq(games.id, id));
+    const gameRef = db.collection("games").doc(id);
+    const gameDoc = await gameRef.get();
+
+    if (!gameDoc.exists) return undefined;
+
+    await gameRef.update({
+      currentHole: game.currentHole,
+      completed: game.completed,
+    });
 
     return this.hydrateGame(id);
   }
 
   async updateScores(id, holeNumber, scoreData) {
-    await db
-      .delete(scores)
-      .where(and(eq(scores.gameId, id), eq(scores.holeNumber, holeNumber)));
+    const gameRef = db.collection("games").doc(id);
+    const gameDoc = await gameRef.get();
 
+    if (!gameDoc.exists) return undefined;
+
+    // Delete existing scores for this hole
+    const scoresSnapshot = await gameRef
+      .collection("scores")
+      .where("holeNumber", "==", holeNumber)
+      .get();
+
+    const batch = db.batch();
+    scoresSnapshot.docs.forEach((doc) => {
+      batch.delete(doc.ref);
+    });
+
+    // Add new scores
+    const scoresRef = gameRef.collection("scores");
     for (const score of scoreData) {
-      await db.insert(scores).values({
-        gameId: id,
+      const scoreId = `${score.playerId}_${holeNumber}`;
+      batch.set(scoresRef.doc(scoreId), {
         playerId: score.playerId,
         holeNumber: score.holeNumber,
-        strokes: score.strokes
+        strokes: score.strokes,
       });
     }
 
-    await db
-      .update(games)
-      .set({ currentHole: holeNumber })
-      .where(eq(games.id, id));
+    // Update current hole
+    batch.update(gameRef, { currentHole: holeNumber });
+
+    await batch.commit();
 
     return this.hydrateGame(id);
   }
 
   async completeGame(id) {
-    await db.update(games).set({ completed: true }).where(eq(games.id, id));
+    const gameRef = db.collection("games").doc(id);
+    const gameDoc = await gameRef.get();
+
+    if (!gameDoc.exists) return undefined;
+
+    await gameRef.update({ completed: true });
 
     return this.hydrateGame(id);
   }
 
   async getHoleInfo(gameId, holeNumber) {
-    const result = await db
-      .select()
-      .from(holeInfo)
-      .where(
-        and(eq(holeInfo.gameId, gameId), eq(holeInfo.holeNumber, holeNumber))
-      );
+    const gameRef = db.collection("games").doc(gameId);
+    const holeDoc = await gameRef
+      .collection("holes")
+      .doc(holeNumber.toString())
+      .get();
 
-    if (result.length === 0) return undefined;
+    if (!holeDoc.exists) return undefined;
 
+    const data = holeDoc.data();
     return {
-      number: result[0].holeNumber,
-      par: result[0].par,
-      yards: result[0].yards
+      number: data.holeNumber,
+      par: data.par,
+      yards: data.yards,
     };
   }
 
   async updateHoleInfo(gameId, holeNumber, par, yards) {
-    const existingResult = await db
-      .select()
-      .from(holeInfo)
-      .where(
-        and(eq(holeInfo.gameId, gameId), eq(holeInfo.holeNumber, holeNumber))
-      );
-
-    if (existingResult.length > 0) {
-      await db
-        .update(holeInfo)
-        .set({ par, yards })
-        .where(
-          and(eq(holeInfo.gameId, gameId), eq(holeInfo.holeNumber, holeNumber))
-        );
-    } else {
-      await db.insert(holeInfo).values({
-        gameId,
+    const gameRef = db.collection("games").doc(gameId);
+    await gameRef.collection("holes").doc(holeNumber.toString()).set(
+      {
         holeNumber,
         par,
-        yards
-      });
-    }
+        yards,
+      },
+      { merge: true }
+    );
 
     return this.getHoleInfo(gameId, holeNumber);
   }
 
   async hydrateGame(gameId) {
-    const gameResults = await db
-      .select()
-      .from(games)
-      .where(eq(games.id, gameId));
-    if (gameResults.length === 0) return undefined;
+    const gameRef = db.collection("games").doc(gameId);
+    const gameDoc = await gameRef.get();
 
-    const gameRecord = gameResults[0];
+    if (!gameDoc.exists) return undefined;
 
-    const playerResults = await db
-      .select()
-      .from(players)
-      .where(eq(players.gameId, gameId));
-    const scoreResults = await db
-      .select()
-      .from(scores)
-      .where(eq(scores.gameId, gameId));
+    const gameData = gameDoc.data();
 
-    const game = {
-      id: gameRecord.id,
-      courseId: gameRecord.courseId,
-      courseName: gameRecord.courseName,
-      holeCount: gameRecord.holeCount,
-      players: playerResults.map((p) => ({ id: p.id, name: p.name })),
-      scores: scoreResults.map((s) => ({
-        playerId: s.playerId,
-        holeNumber: s.holeNumber,
-        strokes: s.strokes
-      })),
-      currentHole: gameRecord.currentHole,
-      completed: gameRecord.completed
+    // Get players
+    const playersSnapshot = await gameRef.collection("players").get();
+    const players = playersSnapshot.docs.map((doc) => ({
+      id: doc.id,
+      name: doc.data().name,
+    }));
+
+    // Get scores
+    const scoresSnapshot = await gameRef.collection("scores").get();
+    const scores = scoresSnapshot.docs.map((doc) => {
+      const data = doc.data();
+      return {
+        playerId: data.playerId,
+        holeNumber: data.holeNumber,
+        strokes: data.strokes,
+      };
+    });
+
+    return {
+      id: gameDoc.id,
+      courseId: gameData.courseId,
+      courseName: gameData.courseName,
+      holeCount: gameData.holeCount,
+      players,
+      scores,
+      currentHole: gameData.currentHole,
+      completed: gameData.completed || false,
     };
-
-    return game;
   }
 }
 
@@ -292,4 +316,5 @@ export class MemStorage {
   }
 }
 
-export const storage = new MemStorage();
+// Use Firestore if available, otherwise fall back to in-memory storage
+export const storage = db ? new FirestoreStorage() : new MemStorage();
