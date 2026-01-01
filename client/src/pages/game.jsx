@@ -52,18 +52,45 @@ export default function Game() {
     par: courseHoles[game.currentHole]?.par || defaultHole.par
   };
 
-  const handlePrevHole = () => {
+  const handlePrevHole = async () => {
     if (game.currentHole > 1) {
-      updateCurrentHole(game.currentHole - 1);
+      try {
+        await updateCurrentHole(game.currentHole - 1);
+      } catch (error) {
+        console.error("Failed to update current hole:", error);
+        toast({
+          title: "Error",
+          description: "Failed to update hole. Please try again.",
+          variant: "destructive"
+        });
+      }
     }
   };
 
-  const handleNextHole = () => {
+  const handleNextHole = async () => {
     if (game.currentHole < game.holeCount) {
-      updateCurrentHole(game.currentHole + 1);
+      try {
+        await updateCurrentHole(game.currentHole + 1);
+      } catch (error) {
+        console.error("Failed to update current hole:", error);
+        toast({
+          title: "Error",
+          description: "Failed to update hole. Please try again.",
+          variant: "destructive"
+        });
+      }
     } else {
-      completeGame();
-      navigate("/summary");
+      try {
+        await completeGame();
+        navigate("/summary");
+      } catch (error) {
+        console.error("Failed to complete game:", error);
+        toast({
+          title: "Error",
+          description: "Failed to complete game. Please try again.",
+          variant: "destructive"
+        });
+      }
     }
   };
 
@@ -100,7 +127,18 @@ export default function Game() {
       <HoleNavigation
         holes={holes}
         currentHole={game.currentHole}
-        onHoleSelect={(holeNumber) => updateCurrentHole(holeNumber)}
+        onHoleSelect={async (holeNumber) => {
+          try {
+            await updateCurrentHole(holeNumber);
+          } catch (error) {
+            console.error("Failed to update current hole:", error);
+            toast({
+              title: "Error",
+              description: "Failed to update hole. Please try again.",
+              variant: "destructive"
+            });
+          }
+        }}
       />
 
       {currentHole && (

@@ -34,5 +34,13 @@ export default defineConfig({
     outDir: path.resolve(__dirname, "public"),
     emptyOutDir: true,
     assetsDir: "assets"
+  },
+  server: {
+    proxy: {
+      "/api": {
+        target: "http://localhost:3000",
+        changeOrigin: true,
+      }
+    }
   }
 });

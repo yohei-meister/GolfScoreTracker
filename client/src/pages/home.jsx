@@ -79,7 +79,7 @@ export default function Home() {
     }
   };
 
-  const onSubmit = (data) => {
+  const onSubmit = async (data) => {
     try {
       if (!customCourseName) {
         toast({
@@ -92,7 +92,7 @@ export default function Home() {
 
       const holeCount = parseInt(data.holeCount);
 
-      initializeGame({
+      await initializeGame({
         id: uuidv4(),
         courseId: "custom",
         courseName: customCourseName,
@@ -108,7 +108,7 @@ export default function Home() {
       console.error("Failed to start game:", error);
       toast({
         title: "Error",
-        description: "Failed to start the game. Please try again.",
+        description: error.message || "Failed to start the game. Please try again.",
         variant: "destructive"
       });
     }

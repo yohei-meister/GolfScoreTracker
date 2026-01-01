@@ -35,7 +35,7 @@ export function ScoreCard({ game, currentHole, onPrevHole, onNextHole }) {
     isInitialMount.current = false;
   }, [currentHole.number, game.players, game.scores, holeData.par]);
 
-  const saveCurrentScores = () => {
+  const saveCurrentScores = async () => {
     const scores = Array.from(playerScores.entries()).map(
       ([playerId, strokes]) => ({
         playerId,
@@ -44,10 +44,14 @@ export function ScoreCard({ game, currentHole, onPrevHole, onNextHole }) {
       })
     );
 
-    updateScores(scores);
+    try {
+      await updateScores(scores);
+    } catch (error) {
+      console.error("Failed to save scores:", error);
+    }
   };
 
-  const handleScoreChange = (playerId, score) => {
+  const handleScoreChange = async (playerId, score) => {
     setPlayerScores((prev) => {
       const newScores = new Map(prev);
       newScores.set(playerId, score);
@@ -67,16 +71,20 @@ export function ScoreCard({ game, currentHole, onPrevHole, onNextHole }) {
       }
     });
 
-    updateScores(scores);
+    try {
+      await updateScores(scores);
+    } catch (error) {
+      console.error("Failed to update scores:", error);
+    }
   };
 
-  const handleNextHole = () => {
-    saveCurrentScores();
+  const handleNextHole = async () => {
+    await saveCurrentScores();
     onNextHole();
   };
 
-  const handlePrevHole = () => {
-    saveCurrentScores();
+  const handlePrevHole = async () => {
+    await saveCurrentScores();
     onPrevHole();
   };
 

@@ -1,54 +1,77 @@
 import { createContext, useContext, useState, useEffect } from "react";
+import { api } from "./api";
 
 const StoreContext = createContext(undefined);
 
 export function StoreProvider({ children }) {
-  const [game, setGame] = useState(() => {
-    const savedGame = localStorage.getItem("golfGame");
-    return savedGame ? JSON.parse(savedGame) : null;
-  });
-
-  const [courseHoles, setCourseHoles] = useState(() => {
-    const savedHoles = localStorage.getItem("courseHoles");
-    if (savedHoles) {
-      return JSON.parse(savedHoles);
-    }
-    return {};
-  });
+  const [game, setGame] = useState(null);
+  const [courseHoles, setCourseHoles] = useState({});
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (game && Object.keys(courseHoles).length === 0) {
+    async function loadCurrentGame() {
+      try {
+        setIsLoading(true);
+        const currentGame = await api.getCurrentGame();
+        if (currentGame) {
+          setGame(currentGame);
+
+          const defaultHoles = {};
+          for (let i = 1; i <= currentGame.holeCount; i++) {
+            defaultHoles[i] = { par: 4 };
+          }
+          setCourseHoles(defaultHoles);
+        }
+      } catch (err) {
+        console.error("Failed to load current game:", err);
+        setError(err.message);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    loadCurrentGame();
+  }, []);
+
+
+  const initializeGame = async (gameData) => {
+    try {
+      const createdGame = await api.createGame(gameData);
+      setGame(createdGame);
+
       const defaultHoles = {};
-      for (let i = 1; i <= game.holeCount; i++) {
+      for (let i = 1; i <= createdGame.holeCount; i++) {
         defaultHoles[i] = { par: 4 };
       }
       setCourseHoles(defaultHoles);
-      localStorage.setItem("courseHoles", JSON.stringify(defaultHoles));
+      setError(null);
+      return createdGame;
+    } catch (err) {
+      console.error("Failed to create game:", err);
+      setError(err.message);
+      throw err;
     }
-  }, [game, courseHoles]);
-
-  const initializeGame = (gameData) => {
-    setGame(gameData);
-    localStorage.setItem("golfGame", JSON.stringify(gameData));
-
-    const defaultHoles = {};
-    for (let i = 1; i <= gameData.holeCount; i++) {
-      defaultHoles[i] = { par: 4 };
-    }
-    setCourseHoles(defaultHoles);
-    localStorage.setItem("courseHoles", JSON.stringify(defaultHoles));
   };
 
-  const updateCurrentHole = (holeNumber) => {
+  const updateCurrentHole = async (holeNumber) => {
     if (!game) return;
 
-    const updatedGame = {
-      ...game,
-      currentHole: holeNumber
-    };
+    try {
+      const updatedGame = {
+        ...game,
+        currentHole: holeNumber
+      };
 
-    setGame(updatedGame);
-    localStorage.setItem("golfGame", JSON.stringify(updatedGame));
+      const result = await api.updateGame(game.id, updatedGame);
+      setGame(result);
+      setError(null);
+      return result;
+    } catch (err) {
+      console.error("Failed to update current hole:", err);
+      setError(err.message);
+      throw err;
+    }
   };
 
   const updateHoleData = (holeNumber, par) => {
@@ -58,47 +81,47 @@ export function StoreProvider({ children }) {
     };
 
     setCourseHoles(updatedHoles);
-    localStorage.setItem("courseHoles", JSON.stringify(updatedHoles));
   };
 
-  const updateScores = (newScores) => {
+  const updateScores = async (newScores) => {
     if (!game) return;
 
-    const filteredScores = game.scores.filter(
-      (score) =>
-        !newScores.some(
-          (newScore) =>
-            newScore.playerId === score.playerId &&
-            newScore.holeNumber === score.holeNumber
-        )
-    );
+    try {
+      const holeNumber = newScores[0]?.holeNumber;
+      if (!holeNumber) {
+        throw new Error("Invalid scores data");
+      }
 
-    const updatedGame = {
-      ...game,
-      scores: [...filteredScores, ...newScores]
-    };
-
-    setGame(updatedGame);
-    localStorage.setItem("golfGame", JSON.stringify(updatedGame));
+      const result = await api.updateScores(game.id, holeNumber, newScores);
+      setGame(result);
+      setError(null);
+      return result;
+    } catch (err) {
+      console.error("Failed to update scores:", err);
+      setError(err.message);
+      throw err;
+    }
   };
 
-  const completeGame = () => {
+  const completeGame = async () => {
     if (!game) return;
 
-    const completedGame = {
-      ...game,
-      completed: true
-    };
-
-    setGame(completedGame);
-    localStorage.setItem("golfGame", JSON.stringify(completedGame));
+    try {
+      const result = await api.completeGame(game.id);
+      setGame(result);
+      setError(null);
+      return result;
+    } catch (err) {
+      console.error("Failed to complete game:", err);
+      setError(err.message);
+      throw err;
+    }
   };
 
   const resetGame = () => {
     setGame(null);
     setCourseHoles({});
-    localStorage.removeItem("golfGame");
-    localStorage.removeItem("courseHoles");
+    setError(null);
   };
 
   return (
@@ -106,6 +129,8 @@ export function StoreProvider({ children }) {
       value={{
         game,
         courseHoles,
+        isLoading,
+        error,
         initializeGame,
         updateCurrentHole,
         updateScores,
