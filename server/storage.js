@@ -4,7 +4,9 @@ import { v4 as uuidv4 } from "uuid";
 export class FirestoreStorage {
   constructor() {
     if (!db) {
-      throw new Error("Firebase not initialized; FirestoreStorage is unavailable.");
+      throw new Error(
+        "Firebase not initialized; FirestoreStorage is unavailable."
+      );
     }
   }
 
@@ -20,7 +22,7 @@ export class FirestoreStorage {
       .where("username", "==", username)
       .limit(1)
       .get();
-    
+
     if (usersSnapshot.empty) return undefined;
     const userDoc = usersSnapshot.docs[0];
     return { id: userDoc.id, ...userDoc.data() };
@@ -30,7 +32,7 @@ export class FirestoreStorage {
     const userRef = db.collection("users").doc();
     await userRef.set({
       ...insertUser,
-      createdAt: new Date(),
+      createdAt: new Date()
     });
     return { id: userRef.id, ...insertUser };
   }
@@ -60,14 +62,15 @@ export class FirestoreStorage {
       holeCount: game.holeCount,
       currentHole: game.currentHole,
       completed: game.completed || false,
-      createdAt: new Date(),
+      createdAt: new Date()
     });
 
     // Create players subcollection
     const playersRef = gameRef.collection("players");
     for (const player of game.players) {
+      console.log(`Creating player: id=${player.id}, name=${player.name}`);
       await playersRef.doc(player.id).set({
-        name: player.name,
+        name: player.name
       });
     }
 
@@ -77,7 +80,7 @@ export class FirestoreStorage {
       await holesRef.doc(i.toString()).set({
         holeNumber: i,
         par: 4,
-        yards: 400,
+        yards: 400
       });
     }
 
@@ -99,7 +102,7 @@ export class FirestoreStorage {
 
     await gameRef.update({
       currentHole: game.currentHole,
-      completed: game.completed,
+      completed: game.completed
     });
 
     return this.hydrateGame(id);
@@ -129,7 +132,7 @@ export class FirestoreStorage {
       batch.set(scoresRef.doc(scoreId), {
         playerId: score.playerId,
         holeNumber: score.holeNumber,
-        strokes: score.strokes,
+        strokes: score.strokes
       });
     }
 
@@ -165,7 +168,7 @@ export class FirestoreStorage {
     return {
       number: data.holeNumber,
       par: data.par,
-      yards: data.yards,
+      yards: data.yards
     };
   }
 
@@ -175,7 +178,7 @@ export class FirestoreStorage {
       {
         holeNumber,
         par,
-        yards,
+        yards
       },
       { merge: true }
     );
@@ -195,7 +198,7 @@ export class FirestoreStorage {
     const playersSnapshot = await gameRef.collection("players").get();
     const players = playersSnapshot.docs.map((doc) => ({
       id: doc.id,
-      name: doc.data().name,
+      name: doc.data().name
     }));
 
     // Get scores
@@ -205,7 +208,7 @@ export class FirestoreStorage {
       return {
         playerId: data.playerId,
         holeNumber: data.holeNumber,
-        strokes: data.strokes,
+        strokes: data.strokes
       };
     });
 
@@ -217,7 +220,7 @@ export class FirestoreStorage {
       players,
       scores,
       currentHole: gameData.currentHole,
-      completed: gameData.completed || false,
+      completed: gameData.completed || false
     };
   }
 }

@@ -12,24 +12,54 @@ class ApiError extends Error {
 async function fetchApi(endpoint, options = {}) {
   const url = `${API_BASE}${endpoint}`;
 
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...options.headers,
-    },
-  });
+  try {
+    const response = await fetch(url, {
+      ...options,
+      headers: {
+        "Content-Type": "application/json",
+        ...options.headers
+      }
+    });
 
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({ message: "Unknown error" }));
+    if (!response.ok) {
+      let errorData;
+      try {
+        errorData = await response.json();
+      } catch (parseError) {
+        // If response is not JSON, create a meaningful error message
+        const statusText = response.statusText || "Unknown error";
+        errorData = {
+          message: `API request failed: ${response.status} ${statusText}. Please make sure the API server is running.`
+        };
+      }
+      throw new ApiError(
+        errorData.message || "API request failed",
+        response.status,
+        errorData.errors
+      );
+    }
+
+    return response.json();
+  } catch (error) {
+    // Handle network errors (e.g., API server not running)
+    if (error instanceof TypeError && error.message.includes("fetch")) {
+      throw new ApiError(
+        "Cannot connect to API server. Please make sure the API server is running (npm run dev:api or npm run dev:full).",
+        0,
+        null
+      );
+    }
+    // Re-throw ApiError as-is
+    if (error instanceof ApiError) {
+      throw error;
+    }
+    // Handle other errors
     throw new ApiError(
-      errorData.message || "API request failed",
-      response.status,
-      errorData.errors
+      error.message || "An unexpected error occurred",
+      0,
+      null
     );
   }
-
-  return response.json();
 }
 
 export const api = {
@@ -47,27 +77,27 @@ export const api = {
   async createGame(gameData) {
     return fetchApi("/api/game", {
       method: "POST",
-      body: JSON.stringify(gameData),
+      body: JSON.stringify(gameData)
     });
   },
 
   async updateGame(id, gameData) {
     return fetchApi(`/api/game/${id}`, {
       method: "PUT",
-      body: JSON.stringify(gameData),
+      body: JSON.stringify(gameData)
     });
   },
 
   async updateScores(id, holeNumber, scores) {
     return fetchApi(`/api/game/${id}/scores`, {
       method: "PATCH",
-      body: JSON.stringify({ holeNumber, scores }),
+      body: JSON.stringify({ holeNumber, scores })
     });
   },
 
   async completeGame(id) {
     return fetchApi(`/api/game/${id}/complete`, {
-      method: "PATCH",
+      method: "PATCH"
     });
-  },
+  }
 };

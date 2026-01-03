@@ -8,8 +8,14 @@ import {
 } from "@/lib/utils";
 import { courses } from "@/lib/courseData";
 
-export function ScoreSummary({ game }) {
-  const { courseHoles } = useStore();
+export function ScoreSummary({ game: gameProp }) {
+  const { game: gameFromStore, courseHoles } = useStore();
+  // Always use game from store if available (always up-to-date), otherwise use prop
+  const game = gameFromStore ?? gameProp;
+  
+  if (!game) {
+    return null;
+  }
 
   const createHolesWithCustomPar = () => {
     return Array.from({ length: game.holeCount }, (_, i) => ({

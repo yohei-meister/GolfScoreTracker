@@ -150,7 +150,7 @@ export default function Game() {
         />
       )}
 
-      <ScoreSummary game={game} />
+      <ScoreSummary />
     </div>
   );
 }

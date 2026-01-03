@@ -92,7 +92,7 @@ export default function Home() {
 
       const holeCount = parseInt(data.holeCount);
 
-      await initializeGame({
+      initializeGame({
         id: uuidv4(),
         courseId: "custom",
         courseName: customCourseName,
@@ -108,7 +108,7 @@ export default function Home() {
       console.error("Failed to start game:", error);
       toast({
         title: "Error",
-        description: error.message || "Failed to start the game. Please try again.",
+        description: "Failed to start the game. Please try again.",
         variant: "destructive"
       });
     }
@@ -241,7 +241,7 @@ export default function Home() {
             <Button
               type="submit"
               data-testid="button-start-game"
-              className="w-full py-2 px-4 bg-green-500 text-white font-medium rounded-md hover:bg-green-600 transition"
+              className="w-full py-2 px-4 bg-green-600 text-white font-medium rounded-md hover:bg-green-700 transition"
             >
               Start Game
             </Button>

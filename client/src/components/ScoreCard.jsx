@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useStore } from "@/lib/store";
@@ -8,7 +8,6 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 export function ScoreCard({ game, currentHole, onPrevHole, onNextHole }) {
   const { updateScores, courseHoles, updateHoleData } = useStore();
   const [playerScores, setPlayerScores] = useState(new Map());
-  const isInitialMount = useRef(true);
 
   const holeData = courseHoles[currentHole.number] || {
     par: currentHole.par
@@ -32,8 +31,7 @@ export function ScoreCard({ game, currentHole, onPrevHole, onNextHole }) {
     });
 
     setPlayerScores(scoresMap);
-    isInitialMount.current = false;
-  }, [currentHole.number, game.players, game.scores, holeData.par]);
+  }, [currentHole.number, game, holeData.par]);
 
   const saveCurrentScores = async () => {
     const scores = Array.from(playerScores.entries()).map(
@@ -52,29 +50,33 @@ export function ScoreCard({ game, currentHole, onPrevHole, onNextHole }) {
   };
 
   const handleScoreChange = async (playerId, score) => {
-    setPlayerScores((prev) => {
-      const newScores = new Map(prev);
-      newScores.set(playerId, score);
-      return newScores;
-    });
+    // Save previous state for error recovery
+    const previousScores = new Map(playerScores);
 
-    const scores = [];
-    playerScores.forEach((strokes, pId) => {
-      if (pId === playerId) {
-        scores.push({
-          playerId,
-          holeNumber: currentHole.number,
-          strokes: score
-        });
-      } else {
-        scores.push({ playerId: pId, holeNumber: currentHole.number, strokes });
-      }
-    });
+    // Calculate updated scores array with the new score
+    const updatedScores = new Map(playerScores);
+    updatedScores.set(playerId, score);
 
+    // Create scores array with all current values (including the updated one)
+    const scoresToSave = Array.from(updatedScores.entries()).map(
+      ([pId, strokes]) => ({
+        playerId: pId,
+        holeNumber: currentHole.number,
+        strokes
+      })
+    );
+
+    // Update local state immediately for UI responsiveness
+    setPlayerScores(updatedScores);
+
+    // Save to Firebase
     try {
-      await updateScores(scores);
+      await updateScores(scoresToSave);
+      // Success: game state will be updated by store, which will trigger useEffect
     } catch (error) {
       console.error("Failed to update scores:", error);
+      // Revert local state on error
+      setPlayerScores(previousScores);
     }
   };
 

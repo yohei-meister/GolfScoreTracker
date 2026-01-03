@@ -1,3 +1,4 @@
+import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import gameHandler from "../api/game.js";
@@ -25,22 +26,48 @@ function adaptHandler(handler) {
   };
 }
 
+// Helper to create a query object with id from params
+function createQueryWithId(req) {
+  // Express 5では req.query が読み取り専用のgetterの場合があるため、
+  // 新しいオブジェクトを作成
+  const query = { ...req.query };
+  if (req.params.id) {
+    query.id = req.params.id;
+  }
+  return query;
+}
+
+// Helper to wrap handler with query modification
+function withQueryId(handler) {
+  return (req, res) => {
+    const queryWithId = createQueryWithId(req);
+
+    // req.queryを一時的に置き換える（getterとして定義）
+    Object.defineProperty(req, "query", {
+      get: () => queryWithId,
+      configurable: true,
+      enumerable: true
+    });
+
+    return adaptHandler(handler)(req, res);
+  };
+}
+
 // Routes
 app.all("/api/game", adaptHandler(gameHandler));
-app.all("/api/game/:id", (req, res) => {
-  req.query = { id: req.params.id };
-  adaptHandler(gameIdHandler)(req, res);
-});
-app.all("/api/game/:id/scores", (req, res) => {
-  req.query = { id: req.params.id };
-  adaptHandler(scoresHandler)(req, res);
-});
-app.all("/api/game/:id/complete", (req, res) => {
-  req.query = { id: req.params.id };
-  adaptHandler(completeHandler)(req, res);
-});
+app.all("/api/game/:id", withQueryId(gameIdHandler));
+app.all("/api/game/:id/scores", withQueryId(scoresHandler));
+app.all("/api/game/:id/complete", withQueryId(completeHandler));
 
 app.listen(PORT, () => {
   console.log(`API server running on http://localhost:${PORT}`);
-  console.log(`Environment: ${process.env.USE_FIREBASE_EMULATOR === "true" ? "Firebase Emulator" : "Production"}`);
+  const useEmulator =
+    process.env.FIRESTORE_EMULATOR_HOST ||
+    process.env.USE_FIREBASE_EMULATOR === "true";
+  console.log(
+    `Environment: ${useEmulator ? "Firebase Emulator" : "Firebase Production"}`
+  );
+  if (!useEmulator && process.env.FIREBASE_PROJECT_ID) {
+    console.log(`Firebase Project: ${process.env.FIREBASE_PROJECT_ID}`);
+  }
 });

@@ -1,6 +1,5 @@
 # Dependencies
 node_modules/
-package-lock.json
 
 # Environment variables
 .env
@@ -10,6 +9,7 @@ package-lock.json
 # Build outputs
 dist/
 build/
+public/
 *.log
 
 # IDE
@@ -26,5 +26,10 @@ Thumbs.db
 # TypeScript
 *.tsbuildinfo
 
-# Database
-migrations/
+# Firebase
+*.json
+!package.json
+!tsconfig.json
+!firebase.json
+!components.json
+!vercel.json

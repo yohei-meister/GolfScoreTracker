@@ -1,4 +1,5 @@
 // Simple test script to verify Firebase connection locally
+import "dotenv/config";
 import { storage } from "../server/storage.js";
 import { v4 as uuidv4 } from "uuid";
 
@@ -17,9 +18,9 @@ async function testFirebase() {
       completed: false,
       players: [
         { id: uuidv4(), name: "Test Player 1" },
-        { id: uuidv4(), name: "Test Player 2" },
+        { id: uuidv4(), name: "Test Player 2" }
       ],
-      scores: [],
+      scores: []
     };
 
     const createdGame = await storage.createGame(testGame);
@@ -43,13 +44,13 @@ async function testFirebase() {
       {
         playerId: createdGame.players[0].id,
         holeNumber: 1,
-        strokes: 4,
+        strokes: 4
       },
       {
         playerId: createdGame.players[1].id,
         holeNumber: 1,
-        strokes: 5,
-      },
+        strokes: 5
+      }
     ];
 
     const updatedGame = await storage.updateScores(createdGame.id, 1, scores);
@@ -81,14 +82,40 @@ async function testFirebase() {
     console.log("\n🎉 All tests passed! Firebase is working correctly.");
   } catch (error) {
     console.error("\n❌ Error testing Firebase:", error.message);
-    console.error("\nMake sure you have set up your Firebase credentials:");
-    console.error("  - FIREBASE_PROJECT_ID");
-    console.error("  - FIREBASE_CLIENT_EMAIL (optional, for service account)");
-    console.error("  - FIREBASE_PRIVATE_KEY (optional, for service account)");
-    console.error("\nOr use Firebase emulator (see README for instructions)");
+
+    // Check if it's an index error
+    if (
+      error.message.includes("index") ||
+      error.message.includes("FAILED_PRECONDITION")
+    ) {
+      console.error("\n📋 Firestore Index Required:");
+      console.error("   This query requires a composite index in Firestore.");
+      console.error(
+        "   The error message above contains a link to create the index."
+      );
+      console.error(
+        "   Please click the link in the error message to create the index."
+      );
+      console.error(
+        "   After creating the index, wait a few minutes for it to build,"
+      );
+      console.error("   then run this test again.");
+      console.error("\n   Required index:");
+      console.error("   - Collection: games");
+      console.error(
+        "   - Fields: completed (Ascending), createdAt (Descending)"
+      );
+    } else {
+      console.error("\nMake sure you have set up your Firebase credentials:");
+      console.error("  - FIREBASE_PROJECT_ID");
+      console.error(
+        "  - FIREBASE_CLIENT_EMAIL (optional, for service account)"
+      );
+      console.error("  - FIREBASE_PRIVATE_KEY (optional, for service account)");
+      console.error("\nOr use Firebase emulator (see README for instructions)");
+    }
     process.exit(1);
   }
 }
 
 testFirebase();
-
